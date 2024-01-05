@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/akshay0074700747/wishlist-service/entities"
 	"gorm.io/gorm"
@@ -20,7 +21,7 @@ func NewWishlistAdapter(db *gorm.DB) *WishlistAdapter {
 func (wishlist *WishlistAdapter) CreateWishlist(req entities.Wishlist) (entities.Wishlist, error) {
 
 	var res entities.Wishlist
-	query := "INSERT INTO wishlists (user_id) VALUES($1) RETURNS id,user_id"
+	query := "INSERT INTO wishlists (user_id) VALUES($1) RETURNING id,user_id"
 
 	tx := wishlist.DB.Begin()
 
@@ -46,7 +47,7 @@ func (wishlist *WishlistAdapter) CreateWishlist(req entities.Wishlist) (entities
 func (wishlist *WishlistAdapter) InsertIntoWishlist(req entities.WishlistItems, user_id uint) (entities.WishlistItems, error) {
 
 	var res entities.WishlistItems
-	query := "INSERT INTO wishlist_items (wishlist_id,product_id) SELECT w.id AS wishlist_id, $1 AS product_id FROM wishlist w WHERE user_id = $2 RETURNING id,wishlist_id,product_id"
+	query := "INSERT INTO wishlist_items (wishlist_id,product_id) SELECT w.id AS wishlist_id, $1 AS product_id FROM wishlists w WHERE user_id = $2 RETURNING id,wishlist_id,product_id"
 
 	tx := wishlist.DB.Begin()
 
@@ -56,13 +57,15 @@ func (wishlist *WishlistAdapter) InsertIntoWishlist(req entities.WishlistItems, 
 		}
 	}()
 
-	err := wishlist.DB.Raw(query, req.WishlistID, req.ProductID).Scan(&res).Error
+	err := tx.Raw(query, req.ProductID, user_id).Scan(&res).Error
 	if err != nil {
 		tx.Rollback()
+		fmt.Println("Error executing query:", err)
 		return entities.WishlistItems{}, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		fmt.Println("Error committing transaction:", err)
 		return res, err
 	}
 
@@ -107,6 +110,8 @@ func (wishlist *WishlistAdapter) DeleteWishlistItem(req entities.WishlistItems, 
 
 func (wishlist *WishlistAdapter) TruncateWishlistItems(user_id uint) error {
 
+	fmt.Println("here reached...")
+
 	query := "DELETE FROM wishlist_items WHERE wishlist_id = (SELECT id FROM wishlists WHERE user_id = $1)"
 
 	tx := wishlist.DB.Begin()
@@ -117,7 +122,7 @@ func (wishlist *WishlistAdapter) TruncateWishlistItems(user_id uint) error {
 		}
 	}()
 
-	err := wishlist.DB.Raw(query, user_id).Error
+	err := wishlist.DB.Exec(query, user_id).Error
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -126,6 +131,6 @@ func (wishlist *WishlistAdapter) TruncateWishlistItems(user_id uint) error {
 	if err := tx.Commit().Error; err != nil {
 		return err
 	}
-
+	fmt.Println("last reached...")
 	return nil
 }

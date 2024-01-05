@@ -46,6 +46,8 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	log.Println("Wishlist-server is llistening or port 50007")
+
 	if err := server.Serve(listener); err != nil {
 		log.Fatal(err.Error())
 	}
