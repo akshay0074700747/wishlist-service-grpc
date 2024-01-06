@@ -34,7 +34,7 @@ func main() {
 
 	pb.RegisterWishlistServiceServer(server, servicee)
 
-	productConn, err := grpc.Dial(":50004", grpc.WithInsecure())
+	productConn, err := grpc.Dial("product-service:50004", grpc.WithInsecure())
 	if err != nil {
 		log.Println(err.Error())
 	}
